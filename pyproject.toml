@@ -1,6 +1,6 @@
 [project]
 name = "ichigo"
-version = "0.1.0"
+version = "1.0.0"
 description = ""
 authors = [
     {name = "Yoru-cyber",email = "carlosmendez170210@gmail.com"}
@@ -10,6 +10,8 @@ requires-python = ">=3.11"
 dependencies = [
     "customtkinter (>=5.2.2,<6.0.0)",
     "yt-dlp[default] (>=2025.2.19,<2026.0.0)",
+    "ctkmessagebox (>=2.7,<3.0)",
+    "isort (>=6.0.1,<7.0.0)",
 ]
 
 [tool.poetry]

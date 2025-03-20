@@ -1,88 +1,101 @@
-import customtkinter
-from pathlib import Path
-import yt_dlp
+import os
 import threading
+import tkinter
+from pathlib import Path
+
+import customtkinter
+import yt_dlp
+from CTkMessagebox import CTkMessagebox
+from PIL import Image, ImageTk
 
 DEFAULT_DOWNLOAD_PATH = str(Path.home() / "Downloads")
-
-
-def download_audio(url, output_path="."):
-    """Downloads audio from a YouTube URL as an MP3 file.
-
-    Args:
-        url: The YouTube URL.
-        output_path: The directory to save the downloaded audio. Defaults to the current directory.
-    """
-    ydl_opts = {
-        "format": "bestaudio/best",  # Select the best audio quality
-        "extractaudio": True,  # Extract audio
-        "audioformat": "mp3",  # Convert to MP3
-        "outtmpl": f"{output_path}/%(title)s.%(ext)s",  # Output filename template
-        "noplaylist": True,  # prevent downloading playlists if given a playlist url.
-    }
-
+def load_custom_theme(theme_path):
+    """Loads a custom color theme from a JSON file for CustomTkinter."""
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        print(f"Audio downloaded successfully to {output_path}")
-
-    except yt_dlp.DownloadError as e:
-        print(f"Error downloading audio: {e}")
-
+        if not os.path.exists(theme_path):
+            raise FileNotFoundError(f"Theme file not found: {theme_path}")
+        customtkinter.set_default_color_theme(theme_path) 
+    # Missing exception for possible IO error when reading file.
+    except FileNotFoundError as e:
+        print(f"Error loading theme: {e}")
+        customtkinter.set_default_color_theme("blue") 
+    except Exception as e:
+        print(f"An unexpected error occured: {e}")
+        customtkinter.set_default_color_theme("blue") 
 
 class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
         self.geometry("800x500")
+        self.set_bg()
         self.download_path = DEFAULT_DOWNLOAD_PATH
-        self.download_thread = threading.Thread(target=self.download_song)
         self.progress = customtkinter.CTkProgressBar(
             self, orientation="horizontal", mode="indeterminate"
         )
-        self.label = customtkinter.CTkLabel(
-            self, text="Test text", fg_color="transparent"
+        self.yt_url = customtkinter.CTkEntry(
+            self, placeholder_text="Your Youtube URL goes here", width=500
         )
-        self.label.pack()
+        self.yt_url.pack()
         self.button = customtkinter.CTkButton(
-            self, text="my button", command=self.download_thread.start
+            self, text="Download", command=self.start_download
         )
         self.button.pack(padx=20, pady=20)
 
-    def button_callbck(self):
-        print("button clicked")
+    def set_bg(self):
+        try:
+            self.image = Image.open("strawberries-bg.jpg")
+            self.image = self.image.resize((1920, 1080), Image.Resampling.LANCZOS)
+            self.tk_image = ImageTk.PhotoImage(self.image)
+            self.background_label = tkinter.Label(self, image=self.tk_image, text="")
+            self.background_label.place(x=0, y=0, relwidth=1, relheight=1)
+        except FileNotFoundError:
+            self.after(0, lambda: CTkMessagebox(title="Error", message="Background image not found!", icon="cancel"))
+        except Exception as e:
+            print(f"Error setting background: {e}")
+            self.after(0, lambda: CTkMessagebox(title="Error", message=f"Failed to set background: {e}", icon="cancel"))
 
     def start_progress(self):
-        self.progress.pack(pady=20, padx=20)
+        self.progress.pack(padx=20, pady=40)
         self.progress.start()
 
     def stop_progress(self):
         self.progress.stop()
-        self.progress.destroy()
+        self.progress.pack_forget()
+
+    def start_download(self):
+        threading.Thread(target=self.download_song).start()
+        self.start_progress()
 
     def download_song(self):
-        dialog = customtkinter.CTkInputDialog(
-            text="Your youtube video URL:", title="Test"
-        )
-        url = dialog.get_input()
-        dialog.destroy()
-        if url == "" or url == None:
-            return
-        self.start_progress()
+        url = self.yt_url.get()
+        self.yt_url._state = "disabled"
+        if url == "" or None:
+            self.yt_url._state = "normal"
+            self.stop_progress()
+            return CTkMessagebox(title="Error", message="No url set!!!", icon="cancel")
         ydl_opts = {
-            "format": "bestaudio/best",  # Select the best audio quality
+            "format": "bestaudio/best",
             "extractaudio": True,  # Extract audio
             "audioformat": "mp3",  # Convert to MP3
-            "outtmpl": f"{self.download_path}/%(title)s.%(ext)s",  # Output filename template
+            "outtmpl": f"{self.download_path}/%(title)s.mp3",  # Output filename template
             "noplaylist": True,  # prevent downloading playlists if given a playlist url.
         }
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
-            print(f"Audio downloaded successfully to {self.download_path}")
+            self.yt_url._state = "normal"
             self.stop_progress()
+            return CTkMessagebox(title="File downloaded", message=f"Audio downloaded successfully to {self.download_path}",
+                  icon="check", option_1="Ok")
         except yt_dlp.DownloadError as e:
             print(f"Error downloading audio: {e}")
 
 
+customtkinter.set_appearance_mode("System")
+load_custom_theme("themes/cherry.json")
 app = App()
+app.title("Ichigo")
+# Missing function to handle loading icon
+icon = tkinter.PhotoImage(file="icons8-strawberry.png")
+app.wm_iconphoto(False, icon)
 app.mainloop()
